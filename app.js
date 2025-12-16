@@ -1,4 +1,4 @@
-// NOTE: Make sure to re-import all necessary Firebase and project files
+// Import the necessary Firebase modules
 import { products } from './products.js'; 
 import { 
     initializeApp 
@@ -10,20 +10,20 @@ import {
     getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, orderBy, onSnapshot, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-// --- CONFIGURATION CONSTANTS (YOUR DETAILS INTEGRATED) ---
+// --- CONFIGURATION CONSTANTS (NEW FIREBASE CONFIG) ---
 const firebaseConfig = { 
-    // !!! CONFIRMED FIREBASE CONFIGURATION (Assuming standard structure based on context) !!!
-    apiKey: "YOUR_API_KEY", // Please ensure you replace this with your actual API Key
-    authDomain: "YOUR_AUTH_DOMAIN", // Please ensure you replace this with your actual Auth Domain
-    projectId: "YOUR_PROJECT_ID",   // Please ensure you replace this with your actual Project ID
-    storageBucket: "YOUR_STORAGE_BUCKET", // If needed
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID", // If needed
-    appId: "YOUR_APP_ID" // If needed
-    // !!! END CONFIRMED CONFIGURATION !!!
+    apiKey: "AIzaSyBYsQnVQM62Q1xo0-RvA7OxY-3_EZefmxU",
+    authDomain: "healing-root-web.firebaseapp.com",
+    projectId: "healing-root-web",
+    storageBucket: "healing-root-web.firebasestorage.app",
+    messagingSenderId: "724545274258",
+    appId: "1:724545274258:web:aa539eacfd656f85c0414b",
+    measurementId: "G-3B33ENKJFJ"
 };
 
-// CONFIRMED ADMIN and CLOUDINARY DETAILS
-const ADMIN_UID = "gKwgPDNJgsdcApIJch6NM9bKmf02";
+// !!! UPDATED ADMIN UID !!!
+const ADMIN_UID = "zqq3aNV8HqdkcnvRKosTE40YbIn2"; 
+// NOTE: Please ensure your Cloudinary URL and UPLOAD_PRESET are correct for your NEW account
 const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dd7dre9hd/upload"; 
 const UPLOAD_PRESET = "unsigned_upload";
 
@@ -63,7 +63,6 @@ const logoutBtn = document.getElementById('logout-btn');
  */
 async function uploadProfilePicture(file) {
     if (!file) {
-        // Return a default placeholder URL if no file is provided
         return "https://res.cloudinary.com/dd7dre9hd/image/upload/v1678886400/default_pfp.png"; 
     }
     
@@ -91,7 +90,6 @@ async function uploadProfilePicture(file) {
  * Creates the custom user profile document in Firestore.
  */
 async function createUserProfile(uid, email, bio, profilePicUrl) {
-    // Determine if the new user is the hardcoded ADMIN_UID
     const isAdmin = (uid === ADMIN_UID);
 
     await setDoc(doc(db, "users", uid), {
@@ -101,7 +99,7 @@ async function createUserProfile(uid, email, bio, profilePicUrl) {
         profilePicUrl: profilePicUrl,
         isAdmin: isAdmin,
         friends: [],
-        pendingRequests: [] // Array of UIDs who sent a request to this user
+        pendingRequests: []
     });
 }
 
@@ -134,7 +132,7 @@ if (signupForm) signupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = e.target.email.value;
     const password = e.target.password.value;
-    const bio = e.target.bio.value || "New member on the platform!"; // Optional field
+    const bio = e.target.bio.value || "New member on the platform!";
     const profilePicFile = document.getElementById('profile-pic-input')?.files[0];
     
     try {
@@ -162,7 +160,6 @@ onAuthStateChanged(auth, async (user) => {
     currentUser = user; 
     
     if (user) {
-        // User is logged in
         loadingStatus.style.display = 'none';
         
         // 1. Load Profile
@@ -170,7 +167,6 @@ onAuthStateChanged(auth, async (user) => {
         currentProfile = docSnap.exists() ? docSnap.data() : null;
         
         if (!currentProfile) {
-            // Profile missing: Force logout and inform user
             console.error("User profile missing in Firestore!");
             await signOut(auth); 
             alert("Error: Incomplete profile data. Please try logging in or signing up again.");
@@ -196,7 +192,6 @@ onAuthStateChanged(auth, async (user) => {
         setupFriendshipListener(user.uid);
 
     } else {
-        // User logged out
         loadingStatus.style.display = 'none';
         contentWrapper.style.display = 'none';
         authModal.style.display = 'flex';
@@ -208,19 +203,14 @@ onAuthStateChanged(auth, async (user) => {
 
 // --- POSTS & REAL-TIME INTERACTION FUNCTIONS (PLACEHOLDERS) ---
 
-/**
- * Placeholder for loading posts. Must be fully implemented.
- */
 function loadSocialFeed() { 
     console.log("Starting social feed listener...");
-    
     const postsQuery = query(collection(db, "posts"), orderBy("timestamp", "desc"));
     
     onSnapshot(postsQuery, (snapshot) => {
         socialFeed.innerHTML = '';
         snapshot.docs.forEach(doc => {
             const post = doc.data();
-            // Basic rendering (You need to flesh this out)
             const postElement = document.createElement('div');
             postElement.className = 'post-card';
             postElement.innerHTML = `
@@ -238,20 +228,8 @@ function loadSocialFeed() {
         });
     });
 }
-
-/**
- * Placeholder for handling the like button click.
- */
 function handleLike(e) { /* Must be fully implemented */ }
-
-/**
- * Placeholder for handling comments.
- */
 function handleComment(e) { /* Must be fully implemented */ }
-
-/**
- * Placeholder for setting up notification listener.
- */
 function setupNotificationListener(uid) { 
     console.log(`Setting up notification listener for ${uid}`);
     const q = query(collection(db, "notifications"), where("recipientUID", "==", uid), orderBy("timestamp", "desc"));
@@ -271,7 +249,6 @@ function setupNotificationListener(uid) {
 
 // --- FRIENDSHIP & CHAT FUNCTIONS (EXISTING) ---
 
-// 1. Friend Search & Request
 document.getElementById('user-search-btn')?.addEventListener('click', async () => {
     const email = document.getElementById('user-search-input').value;
     if (!email) return;
@@ -315,7 +292,6 @@ async function sendFriendRequest(e) {
     }
 }
 
-// 2. Real-time Friendship Listener
 function setupFriendshipListener(uid) {
     onSnapshot(doc(db, "users", uid), (docSnap) => {
         if (docSnap.exists()) {
@@ -327,7 +303,6 @@ function setupFriendshipListener(uid) {
     });
 }
 
-// 3. Render Friends List
 async function renderFriends(friendUids) {
     myFriendsList.innerHTML = '';
     if (friendUids.length === 0) {
@@ -355,7 +330,6 @@ async function renderFriends(friendUids) {
     });
 }
 
-// 4. Render Friend Requests
 async function renderFriendRequests(requestUids) {
     friendRequestsReceived.innerHTML = '';
     if (!requestUids || requestUids.length === 0) {
@@ -384,7 +358,6 @@ async function renderFriendRequests(requestUids) {
     });
 }
 
-// 5. Handle Friend Request (Accept/Reject)
 function handleFriendRequest(action) {
     return async (e) => {
         const senderUID = e.currentTarget.dataset.senderUid;
@@ -403,7 +376,6 @@ function handleFriendRequest(action) {
     }
 }
 
-// 6. Start/Select Chat (Find or Create Chat Document)
 async function startChat(e) {
     const friendUID = e.currentTarget.dataset.uid;
     activeChatFriendUID = friendUID;
@@ -425,7 +397,6 @@ async function startChat(e) {
     setupMessageListener(chatID);
 }
 
-// 7. Real-time Message Listener
 function setupMessageListener(chatID) {
     const q = query(collection(db, "chats", chatID, "messages"), orderBy("timestamp", "asc"));
     
@@ -446,7 +417,6 @@ function setupMessageListener(chatID) {
     });
 }
 
-// 8. Handle Chat Message Submission
 chatForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = messageInput.value.trim();
