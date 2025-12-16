@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healing Root Agro Ventures - Sustainable Farming Community</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <div class="logo">HEALING ROOT AGRO VENTURES</div>
+        <nav>
+            <a href="#about">Our Story</a>
+            <a href="#products">Shop Seedlings</a>
+            <a href="#social">Community</a>
+            
+            <div class="notification-area" data-auth="loggedIn" style="display: none;">
+                <button id="notification-bell">🔔 <span id="notification-counter"></span></button>
+                <div id="notification-dropdown" class="dropdown-content">
+                    </div>
+            </div>
+
+            <a href="#" id="login-link" data-auth="loggedOut">Login / Sign Up</a>
+            <a href="profile.html" id="profile-link" data-auth="loggedIn" style="display: none;">My Profile</a>
+            <a href="admin.html" id="admin-link" style="display: none; background-color: #4CAF50; color: white; padding: 5px 10px; border-radius: 4px;">Admin</a>
+            <a href="#" id="logout-link" data-auth="loggedIn" style="display: none;">Logout</a>
+        </nav>
+    </header>
+
+    <main>
+        <section id="hero">
+            <h1>Driving Sustainable Agricultural Success</h1>
+            <p>Premium, high-yield planting materials and a thriving farmer community, right at your fingertips.</p>
+            <a href="#products" class="button-primary">Shop Our Selection</a>
+        </section>
+        
+        <section id="products" class="container">
+            <h2>Premium Planting Materials</h2>
+            <div id="product-list" class="grid-container">
+                </div>
+        </section>
+
+        <section id="social" class="container">
+            <h2>The Healing Root Farmer Community Feed</h2>
+            <div id="post-form-area" data-auth="loggedIn" style="display: none;">
+                <form id="new-post-form">
+                    <textarea placeholder="What's growing on your farm today?" required></textarea>
+                    <button type="submit" class="button-primary">Share Post</button>
+                </form>
+            </div>
+            <div id="social-feed" class="social-feed">
+                <p class="intro-text">Please log in to view and participate in the community feed.</p>
+            </div>
+        </section>
+
+        <div id="auth-modal" class="modal">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h2>Join The Community</h2>
+                <div class="auth-toggle">
+                    <button id="show-signup">Sign Up</button>
+                    <button id="show-login">Log In</button>
+                </div>
+                <form id="signup-form">
+                    <input type="email" name="email" placeholder="Email" required>
+                    <input type="password" name="password" placeholder="Password (min 6 characters)" required>
+                    <input type="text" name="bio" placeholder="Bio (e.g., Yam Farmer)" required>
+                    <label for="profile-pic-input">Profile Picture:</label>
+                    <input type="file" id="profile-pic-input" accept="image/*">
+                    <button type="submit" class="button-primary">Register Account</button>
+                </form>
+
+                <form id="login-form" style="display: none;">
+                    <input type="email" name="email" placeholder="Email" required>
+                    <input type="password" name="password" placeholder="Password" required>
+                    <button type="submit" class="button-primary">Log In</button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        </footer>
+
+    <script type="module" src="app.js"></script>
+    <script>
+        // Simple logic to switch between signup/login forms in the modal
+        document.getElementById('show-login').onclick = () => {
+            document.getElementById('signup-form').style.display = 'none';
+            document.getElementById('login-form').style.display = 'block';
+        };
+        document.getElementById('show-signup').onclick = () => {
+            document.getElementById('signup-form').style.display = 'block';
+            document.getElementById('login-form').style.display = 'none';
+        };
+    </script>
+</body>
+</html>
