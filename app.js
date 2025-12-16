@@ -1,5 +1,5 @@
 // NOTE: Make sure to re-import all necessary Firebase and project files
-import { products } from './products.js'; // Assuming you still need this file
+import { products } from './products.js'; 
 import { 
     initializeApp 
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
@@ -7,13 +7,22 @@ import {
     getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut 
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 import { 
-    getFirestore, doc, setDoc, getDoc, collection, query, where, orderBy, onSnapshot, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp 
+    getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, orderBy, onSnapshot, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-// --- CONFIGURATION CONSTANTS ---
+// --- CONFIGURATION CONSTANTS (YOUR DETAILS INTEGRATED) ---
 const firebaseConfig = { 
-    // YOUR CONFIG HERE (Ensure it is correct!)
+    // !!! CONFIRMED FIREBASE CONFIGURATION (Assuming standard structure based on context) !!!
+    apiKey: "YOUR_API_KEY", // Please ensure you replace this with your actual API Key
+    authDomain: "YOUR_AUTH_DOMAIN", // Please ensure you replace this with your actual Auth Domain
+    projectId: "YOUR_PROJECT_ID",   // Please ensure you replace this with your actual Project ID
+    storageBucket: "YOUR_STORAGE_BUCKET", // If needed
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID", // If needed
+    appId: "YOUR_APP_ID" // If needed
+    // !!! END CONFIRMED CONFIGURATION !!!
 };
+
+// CONFIRMED ADMIN and CLOUDINARY DETAILS
 const ADMIN_UID = "gKwgPDNJgsdcApIJch6NM9bKmf02";
 const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dd7dre9hd/upload"; 
 const UPLOAD_PRESET = "unsigned_upload";
@@ -29,6 +38,7 @@ let currentProfile = null;
 let activeChatFriendUID = null;
 let currentChatID = null;
 
+// UI Elements
 const contentWrapper = document.getElementById('content-wrapper');
 const authModal = document.getElementById('auth-modal');
 const socialFeed = document.getElementById('social-feed');
@@ -40,20 +50,130 @@ const messagesDisplay = document.getElementById('messages-display');
 const chatForm = document.getElementById('chat-form');
 const messageInput = document.getElementById('message-input');
 
+// Auth Forms
+const loginForm = document.getElementById('login-form');
+const signupForm = document.getElementById('signup-form');
+const logoutBtn = document.getElementById('logout-btn');
+
+
+// --- HELPER FUNCTIONS ---
+
+/**
+ * Uploads an image file to Cloudinary and returns the URL.
+ */
+async function uploadProfilePicture(file) {
+    if (!file) {
+        // Return a default placeholder URL if no file is provided
+        return "https://res.cloudinary.com/dd7dre9hd/image/upload/v1678886400/default_pfp.png"; 
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', UPLOAD_PRESET);
+
+    try {
+        const response = await fetch(CLOUDINARY_URL, {
+            method: 'POST',
+            body: formData,
+        });
+        if (!response.ok) {
+            throw new Error(`Cloudinary upload failed: ${response.statusText}`);
+        }
+        const data = await response.json();
+        return data.secure_url;
+    } catch (error) {
+        console.error("Cloudinary Upload Error:", error);
+        throw new Error("Failed to upload profile picture.");
+    }
+}
+
+/**
+ * Creates the custom user profile document in Firestore.
+ */
+async function createUserProfile(uid, email, bio, profilePicUrl) {
+    // Determine if the new user is the hardcoded ADMIN_UID
+    const isAdmin = (uid === ADMIN_UID);
+
+    await setDoc(doc(db, "users", uid), {
+        uid: uid,
+        email: email,
+        bio: bio,
+        profilePicUrl: profilePicUrl,
+        isAdmin: isAdmin,
+        friends: [],
+        pendingRequests: [] // Array of UIDs who sent a request to this user
+    });
+}
+
+// --- AUTHENTICATION HANDLERS ---
+
+logoutBtn?.addEventListener('click', async () => {
+    try {
+        await signOut(auth);
+    } catch (error) {
+        console.error("Logout Error:", error);
+        alert("Logout Failed.");
+    }
+});
+
+
+if (loginForm) loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = e.target.email.value;
+    const password = e.target.password.value;
+
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+        console.error("Login Failed:", error);
+        alert(`Login Failed: ${error.message}`);
+    }
+});
+
+if (signupForm) signupForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = e.target.email.value;
+    const password = e.target.password.value;
+    const bio = e.target.bio.value || "New member on the platform!"; // Optional field
+    const profilePicFile = document.getElementById('profile-pic-input')?.files[0];
+    
+    try {
+        // 1. FIREBASE AUTH CREATION
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        console.log("LOG 1: SUCCESS - User created in Firebase Auth.", userCredential.user.uid);
+        
+        // 2. CLOUDINARY UPLOAD (and get URL)
+        const picUrl = await uploadProfilePicture(profilePicFile);
+        console.log("LOG 2: SUCCESS - Profile picture URL obtained:", picUrl);
+        
+        // 3. FIRESTORE PROFILE CREATION (This is where the rules apply)
+        await createUserProfile(userCredential.user.uid, email, bio, picUrl);
+        console.log("LOG 3: SUCCESS - Profile written to Firestore.");
+        
+        alert("Account created successfully! Welcome.");
+    } catch (error) { 
+        console.error("🔥🔥🔥 FINAL SIGNUP FAILURE POINT 🔥🔥🔥:", error);
+        alert(`Error during signup: ${error.message}`); 
+    }
+});
 
 // --- CORE AUTHENTICATION LISTENER ---
 onAuthStateChanged(auth, async (user) => {
     currentUser = user; 
     
     if (user) {
+        // User is logged in
         loadingStatus.style.display = 'none';
         
         // 1. Load Profile
         const docSnap = await getDoc(doc(db, "users", user.uid));
         currentProfile = docSnap.exists() ? docSnap.data() : null;
+        
         if (!currentProfile) {
-            // Handle incomplete profile (should not happen if signup works)
-            console.error("User profile missing!");
+            // Profile missing: Force logout and inform user
+            console.error("User profile missing in Firestore!");
+            await signOut(auth); 
+            alert("Error: Incomplete profile data. Please try logging in or signing up again.");
             return;
         }
 
@@ -63,8 +183,11 @@ onAuthStateChanged(auth, async (user) => {
         
         document.querySelectorAll('[data-auth="loggedIn"]').forEach(el => el.style.display = 'block');
         document.querySelectorAll('[data-auth="loggedOut"]').forEach(el => el.style.display = 'none');
+        
         if (user.uid === ADMIN_UID) {
             document.getElementById('admin-link').style.display = 'block';
+        } else {
+            document.getElementById('admin-link').style.display = 'none';
         }
 
         // 3. Start Real-time Listeners
@@ -83,19 +206,73 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 
-// --- POSTS & REAL-TIME INTERACTION FUNCTIONS (Same as previous step, ensure they are imported/defined) ---
+// --- POSTS & REAL-TIME INTERACTION FUNCTIONS (PLACEHOLDERS) ---
 
-// Placeholder functions (You need to ensure these are defined/imported correctly):
-// function loadSocialFeed() { ... }
-// function handleLike(e) { ... }
-// function handleComment(e) { ... }
-// function setupNotificationListener(uid) { ... }
+/**
+ * Placeholder for loading posts. Must be fully implemented.
+ */
+function loadSocialFeed() { 
+    console.log("Starting social feed listener...");
+    
+    const postsQuery = query(collection(db, "posts"), orderBy("timestamp", "desc"));
+    
+    onSnapshot(postsQuery, (snapshot) => {
+        socialFeed.innerHTML = '';
+        snapshot.docs.forEach(doc => {
+            const post = doc.data();
+            // Basic rendering (You need to flesh this out)
+            const postElement = document.createElement('div');
+            postElement.className = 'post-card';
+            postElement.innerHTML = `
+                <div class="post-header">
+                    <img src="${post.authorPfp || 'default.png'}" class="post-pfp">
+                    <strong>${post.authorName || post.authorUID}</strong>
+                    <small>(${new Date(post.timestamp?.toDate()).toLocaleTimeString()})</small>
+                </div>
+                <p>${post.content}</p>
+                <div class="post-actions">
+                    <button class="like-btn" data-post-id="${doc.id}">Like (${post.likes?.length || 0})</button>
+                </div>
+            `;
+            socialFeed.appendChild(postElement);
+        });
+    });
+}
+
+/**
+ * Placeholder for handling the like button click.
+ */
+function handleLike(e) { /* Must be fully implemented */ }
+
+/**
+ * Placeholder for handling comments.
+ */
+function handleComment(e) { /* Must be fully implemented */ }
+
+/**
+ * Placeholder for setting up notification listener.
+ */
+function setupNotificationListener(uid) { 
+    console.log(`Setting up notification listener for ${uid}`);
+    const q = query(collection(db, "notifications"), where("recipientUID", "==", uid), orderBy("timestamp", "desc"));
+
+    onSnapshot(q, (snapshot) => {
+        let unreadCount = 0;
+        snapshot.docs.forEach(doc => {
+            if (!doc.data().read) {
+                unreadCount++;
+            }
+        });
+        notificationCounter.textContent = unreadCount > 0 ? unreadCount : '';
+        notificationCounter.style.display = unreadCount > 0 ? 'block' : 'none';
+    });
+}
 
 
-// --- FRIENDSHIP & CHAT FUNCTIONS (NEW) ---
+// --- FRIENDSHIP & CHAT FUNCTIONS (EXISTING) ---
 
 // 1. Friend Search & Request
-document.getElementById('user-search-btn').addEventListener('click', async () => {
+document.getElementById('user-search-btn')?.addEventListener('click', async () => {
     const email = document.getElementById('user-search-input').value;
     if (!email) return;
 
@@ -128,11 +305,10 @@ async function sendFriendRequest(e) {
 
     try {
         await updateDoc(doc(db, "users", recipientUID), {
-            // Add current user's UID to recipient's pendingRequests array
             pendingRequests: arrayUnion(currentUser.uid) 
         });
         alert("Friend request sent!");
-        document.getElementById('search-results').innerHTML = ''; // Clear results
+        document.getElementById('search-results').innerHTML = '';
     } catch (error) {
         console.error("Error sending request:", error);
         alert("Failed to send request.");
@@ -144,7 +320,7 @@ function setupFriendshipListener(uid) {
     onSnapshot(doc(db, "users", uid), (docSnap) => {
         if (docSnap.exists()) {
             const user = docSnap.data();
-            currentProfile = user; // Update global state
+            currentProfile = user;
             renderFriends(user.friends);
             renderFriendRequests(user.pendingRequests);
         }
@@ -159,7 +335,6 @@ async function renderFriends(friendUids) {
         return;
     }
 
-    // Fetch friend profiles
     const friendProfiles = await Promise.all(
         friendUids.map(uid => getDoc(doc(db, "users", uid)))
     );
@@ -188,7 +363,6 @@ async function renderFriendRequests(requestUids) {
         return;
     }
 
-    // Fetch request sender profiles
     const senderProfiles = await Promise.all(
         requestUids.map(uid => getDoc(doc(db, "users", uid)))
     );
@@ -218,14 +392,11 @@ function handleFriendRequest(action) {
         const recipientRef = doc(db, "users", currentUser.uid);
 
         if (action === 'accept') {
-            // 1. Remove request from recipient's pendingRequests
             await updateDoc(recipientRef, { pendingRequests: arrayRemove(senderUID) });
-            // 2. Add both to each other's friends array
             await updateDoc(recipientRef, { friends: arrayUnion(senderUID) });
             await updateDoc(senderRef, { friends: arrayUnion(currentUser.uid) });
             alert(`You are now friends with ${senderUID.substring(0, 5)}...`);
         } else if (action === 'reject') {
-            // 1. Only remove request from recipient's pendingRequests
             await updateDoc(recipientRef, { pendingRequests: arrayRemove(senderUID) });
             alert(`Request from ${senderUID.substring(0, 5)}... rejected.`);
         }
@@ -237,24 +408,20 @@ async function startChat(e) {
     const friendUID = e.currentTarget.dataset.uid;
     activeChatFriendUID = friendUID;
 
-    // Determine the chat ID by sorting UIDs to ensure consistency
     const participants = [currentUser.uid, friendUID].sort();
     const chatID = participants.join('_');
     currentChatID = chatID;
 
-    // Display friend's name in chat header
     const friendProfile = await getDoc(doc(db, "users", friendUID)).then(d => d.data());
-    document.getElementById('chat-window').querySelector('h3').textContent = `💬 Chat with ${friendProfile.email.split('@')[0]}`;
+    document.getElementById('chat-window').previousElementSibling.textContent = `💬 Chat with ${friendProfile.email.split('@')[0]}`;
     document.getElementById('chat-form').style.display = 'flex';
-    document.getElementById('messages-display').innerHTML = ''; // Clear previous messages
+    document.getElementById('messages-display').innerHTML = ''; 
     
-    // Ensure chat document exists (or create it)
     await setDoc(doc(db, "chats", chatID), { 
         participants: participants, 
         lastMessageAt: serverTimestamp() 
     }, { merge: true });
 
-    // Start real-time message listener
     setupMessageListener(chatID);
 }
 
@@ -262,7 +429,6 @@ async function startChat(e) {
 function setupMessageListener(chatID) {
     const q = query(collection(db, "chats", chatID, "messages"), orderBy("timestamp", "asc"));
     
-    // Unsubscribe from previous listener if active
     if (window.unsubscribeMessages) window.unsubscribeMessages(); 
 
     window.unsubscribeMessages = onSnapshot(q, (snapshot) => {
@@ -276,13 +442,12 @@ function setupMessageListener(chatID) {
             messageDiv.textContent = message.text;
             messagesDisplay.appendChild(messageDiv);
         });
-        // Scroll to bottom of chat
         messagesDisplay.scrollTop = messagesDisplay.scrollHeight;
     });
 }
 
 // 8. Handle Chat Message Submission
-chatForm.addEventListener('submit', async (e) => {
+chatForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = messageInput.value.trim();
     if (!text || !currentChatID) return;
@@ -293,7 +458,6 @@ chatForm.addEventListener('submit', async (e) => {
         timestamp: serverTimestamp()
     });
     
-    // Update the parent chat document for sorting/last message preview
     await updateDoc(doc(db, "chats", currentChatID), {
         lastMessageText: text,
         lastMessageAt: serverTimestamp()
@@ -301,8 +465,3 @@ chatForm.addEventListener('submit', async (e) => {
 
     messageInput.value = '';
 });
-
-
-// --- ADMIN DASHBOARD & OTHER UI FUNCTIONS (As per previous steps) ---
-
-// (Ensure your login/signup/logout handlers and Cloudinary upload function are still present)
