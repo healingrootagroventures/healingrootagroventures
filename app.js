@@ -21,10 +21,15 @@ const firebaseConfig = {
     measurementId: "G-3B33ENKJFJ"
 };
 
-// !!! UPDATED ADMIN UID & CLOUDINARY DETAILS !!!
+// !!! DEBUG BYPASS SWITCH !!!
+// SET THIS TO 'false' TO RE-ENABLE AUTHENTICATION
+const DEBUG_MODE_BYPASS_AUTH = true; 
+const DEBUG_USER_UID = "12345DEBUGUSER67890"; // Test user ID for bypass
+
+// OTHER CONFIG
 const ADMIN_UID = "zqq3aNV8HqdkcnvRKosTE40YbIn2"; 
-const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dzol6xyx8/upload"; // CLOUD NAME INTEGRATED
-const UPLOAD_PRESET = "unsigned-upload"; // PRESET CODE INTEGRATED
+const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dzol6xyx8/upload"; 
+const UPLOAD_PRESET = "unsigned-upload"; 
 
 // --- FIREBASE INITIALIZATION ---
 const app = initializeApp(firebaseConfig);
@@ -37,7 +42,7 @@ let currentProfile = null;
 let activeChatFriendUID = null;
 let currentChatID = null;
 
-// UI Elements
+// UI Elements (Using getElementById is safer than querySelector for caching)
 const contentWrapper = document.getElementById('content-wrapper');
 const authModal = document.getElementById('auth-modal');
 const socialFeed = document.getElementById('social-feed');
@@ -55,14 +60,13 @@ const signupForm = document.getElementById('signup-form');
 const logoutBtn = document.getElementById('logout-btn');
 
 
-// --- HELPER FUNCTIONS ---
+// --- HELPER FUNCTIONS (No Change) ---
 
 /**
  * Uploads an image file to Cloudinary and returns the URL.
  */
 async function uploadProfilePicture(file) {
     if (!file) {
-        // Use a default placeholder URL that will work even if the Cloudinary API fails.
         return "https://via.placeholder.com/150?text=PFP"; 
     }
     
@@ -76,7 +80,6 @@ async function uploadProfilePicture(file) {
             body: formData,
         });
         if (!response.ok) {
-            // Throwing a detailed error if the Cloudinary upload fails
             const errorData = await response.json();
             throw new Error(`Cloudinary upload failed (Status: ${response.status}): ${errorData.error.message || response.statusText}`);
         }
@@ -109,7 +112,12 @@ async function createUserProfile(uid, email, bio, profilePicUrl) {
 
 logoutBtn?.addEventListener('click', async () => {
     try {
-        await signOut(auth);
+        if (DEBUG_MODE_BYPASS_AUTH) {
+            // In bypass mode, just reload the page to clear the session state
+            location.reload(); 
+        } else {
+            await signOut(auth);
+        }
     } catch (error) {
         console.error("Logout Error:", error);
         alert("Logout Failed.");
@@ -117,54 +125,85 @@ logoutBtn?.addEventListener('click', async () => {
 });
 
 
-if (loginForm) loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = e.target.email.value;
-    const password = e.target.password.value;
-
-    try {
-        await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-        console.error("Login Failed:", error);
-        alert(`Login Failed: ${error.message}`);
+function initAuthListeners() {
+    // Only attach listeners if NOT in debug bypass mode
+    if (DEBUG_MODE_BYPASS_AUTH) {
+        console.warn("DEBUG MODE: Authentication forms are disabled.");
+        return;
     }
-});
-
-if (signupForm) signupForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = e.target.email.value;
-    const password = e.target.password.value;
-    const bio = e.target.bio.value || "New member on the platform!";
-    const profilePicFile = document.getElementById('profile-pic-input')?.files[0];
     
-    try {
-        // 1. FIREBASE AUTH CREATION
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        console.log("LOG 1: SUCCESS - User created in Firebase Auth.", userCredential.user.uid);
-        
-        // 2. CLOUDINARY UPLOAD (and get URL)
-        const picUrl = await uploadProfilePicture(profilePicFile);
-        console.log("LOG 2: SUCCESS - Profile picture URL obtained:", picUrl);
-        
-        // 3. FIRESTORE PROFILE CREATION (This is where the rules apply)
-        await createUserProfile(userCredential.user.uid, email, bio, picUrl);
-        console.log("LOG 3: SUCCESS - Profile written to Firestore.");
-        
-        alert("Account created successfully! Welcome.");
-    } catch (error) { 
-        console.error("🔥🔥🔥 FINAL SIGNUP FAILURE POINT 🔥🔥🔥:", error);
-        alert(`Error during signup: ${error.message}`); 
-    }
-});
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = e.target.email.value;
+            const password = e.target.password.value;
 
-// --- CORE AUTHENTICATION LISTENER ---
-onAuthStateChanged(auth, async (user) => {
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                console.error("Login Failed:", error);
+                alert(`Login Failed: ${error.message}`);
+            }
+        });
+    }
+
+    if (signupForm) {
+        signupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = e.target.email.value;
+            const password = e.target.password.value;
+            const bio = e.target.bio.value || "New member on the platform!";
+            const profilePicFile = document.getElementById('profile-pic-input')?.files[0];
+            
+            try {
+                // 1. FIREBASE AUTH CREATION
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                console.log("LOG 1: SUCCESS - User created in Firebase Auth.", userCredential.user.uid);
+                
+                // 2. CLOUDINARY UPLOAD (and get URL)
+                const picUrl = await uploadProfilePicture(profilePicFile);
+                console.log("LOG 2: SUCCESS - Profile picture URL obtained:", picUrl);
+                
+                // 3. FIRESTORE PROFILE CREATION (This is where the rules apply)
+                await createUserProfile(userCredential.user.uid, email, bio, picUrl);
+                console.log("LOG 3: SUCCESS - Profile written to Firestore.");
+                
+                alert("Account created successfully! Welcome.");
+            } catch (error) { 
+                console.error("🔥🔥🔥 FINAL SIGNUP FAILURE POINT 🔥🔥🔥:", error);
+                alert(`Error during signup: ${error.message}`); 
+            }
+        });
+    }
+}
+
+/**
+ * Common application setup logic (runs after successful login or debug bypass).
+ * @param {object} user - The authenticated Firebase user object or a mock object.
+ */
+async function initializeAppContent(user) {
     currentUser = user; 
-    
-    if (user) {
-        loadingStatus.style.display = 'none';
+    loadingStatus.style.display = 'none';
+
+    // Mock profile for debug mode if it doesn't exist in Firestore
+    if (DEBUG_MODE_BYPASS_AUTH) {
+        currentProfile = {
+            uid: DEBUG_USER_UID,
+            email: "debug@agrolink.com",
+            bio: "Debug User Profile",
+            profilePicUrl: "https://via.placeholder.com/150?text=DEBUG",
+            isAdmin: (user.uid === ADMIN_UID),
+            friends: [], 
+            pendingRequests: []
+        };
+        // Ensure content is visible and modal is hidden
+        contentWrapper.style.display = 'block';
+        authModal.style.display = 'none';
+
+        console.warn("DEBUG MODE ACTIVE: App content loaded with mock user profile.");
         
-        // 1. Load Profile
+    } else {
+        // --- NORMAL MODE: Load Real Profile ---
         const docSnap = await getDoc(doc(db, "users", user.uid));
         currentProfile = docSnap.exists() ? docSnap.data() : null;
         
@@ -175,35 +214,54 @@ onAuthStateChanged(auth, async (user) => {
             return;
         }
 
-        // 2. Update UI & Display Content
         contentWrapper.style.display = 'block';
         authModal.style.display = 'none';
-        
-        document.querySelectorAll('[data-auth="loggedIn"]').forEach(el => el.style.display = 'block');
-        document.querySelectorAll('[data-auth="loggedOut"]').forEach(el => el.style.display = 'none');
-        
-        if (user.uid === ADMIN_UID) {
-            document.getElementById('admin-link').style.display = 'block';
-        } else {
-            document.getElementById('admin-link').style.display = 'none';
-        }
-
-        // 3. Start Real-time Listeners
-        loadSocialFeed();
-        setupNotificationListener(user.uid);
-        setupFriendshipListener(user.uid);
-
-    } else {
-        loadingStatus.style.display = 'none';
-        contentWrapper.style.display = 'none';
-        authModal.style.display = 'flex';
-        document.querySelectorAll('[data-auth="loggedIn"]').forEach(el => el.style.display = 'none');
-        document.querySelectorAll('[data-auth="loggedOut"]').forEach(el => el.style.display = 'block');
     }
-});
+
+    // 2. Update UI & Display Content
+    document.querySelectorAll('[data-auth="loggedIn"]').forEach(el => el.style.display = 'block');
+    document.querySelectorAll('[data-auth="loggedOut"]').forEach(el => el.style.display = 'none');
+    
+    if (user.uid === ADMIN_UID) {
+        document.getElementById('admin-link').style.display = 'block';
+    } else {
+        document.getElementById('admin-link').style.display = 'none';
+    }
+
+    // 3. Start Real-time Listeners
+    loadSocialFeed();
+    setupNotificationListener(user.uid);
+    setupFriendshipListener(user.uid);
+}
 
 
-// --- POSTS & REAL-TIME INTERACTION FUNCTIONS (PLACEHOLDERS) ---
+// --- CORE AUTHENTICATION LISTENER OR BYPASS ---
+if (DEBUG_MODE_BYPASS_AUTH) {
+    // If debug mode is ON, create a mock user object and bypass Firebase Auth listener
+    const mockUser = { uid: DEBUG_USER_UID };
+    initializeAppContent(mockUser);
+    
+} else {
+    // If debug mode is OFF, use the normal Firebase Auth listener
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            await initializeAppContent(user);
+        } else {
+            // Logged out
+            loadingStatus.style.display = 'none';
+            contentWrapper.style.display = 'none';
+            authModal.style.display = 'flex';
+            document.querySelectorAll('[data-auth="loggedIn"]').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('[data-auth="loggedOut"]').forEach(el => el.style.display = 'block');
+        }
+    });
+}
+
+
+// --- INITIALIZATION ---
+initAuthListeners();
+
+// --- POSTS & CHAT FUNCTIONS (No Change) ---
 
 function loadSocialFeed() { 
     console.log("Starting social feed listener...");
@@ -211,6 +269,10 @@ function loadSocialFeed() {
     
     onSnapshot(postsQuery, (snapshot) => {
         socialFeed.innerHTML = '';
+        if (snapshot.empty) {
+            socialFeed.innerHTML = '<p style="text-align: center; color: #666;">No posts found. Start sharing!</p>';
+            return;
+        }
         snapshot.docs.forEach(doc => {
             const post = doc.data();
             const postElement = document.createElement('div');
