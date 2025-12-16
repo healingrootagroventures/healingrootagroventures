@@ -1,0 +1,193 @@
+/* --- Global Styles (from previous step, keeping only the updated parts) --- */
+:root {
+    --primary-color: #4CAF50; 
+    --secondary-color: #388E3C; 
+    --text-color: #333;
+    --light-bg: #f7f7f7;
+    --max-width: 1100px;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    color: var(--text-color);
+    background-color: white;
+}
+
+.container {
+    max-width: var(--max-width);
+    margin: 40px auto;
+    padding: 0 20px;
+}
+
+/* ... (rest of Header, Hero, Footer, and Modal styles from previous step) ... */
+
+/* --- Product Grid --- */
+#products {
+    background-color: var(--light-bg);
+    padding-bottom: 60px;
+}
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 30px;
+    margin-top: 30px;
+}
+.product-card {
+    background-color: white;
+    /* ... (rest of product-card styles) ... */
+}
+
+
+/* --- Social Feed Styles (NEW) --- */
+.social-feed {
+    max-width: 700px;
+    margin: 30px auto;
+}
+
+.post-card {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.post-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.post-pfp {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 10px;
+    object-fit: cover;
+}
+
+.post-time {
+    color: #888;
+    font-size: 0.8em;
+    margin-left: auto;
+}
+
+.post-content {
+    line-height: 1.5;
+    margin: 10px 0;
+}
+
+.post-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    color: #555;
+    padding: 5px 10px;
+    transition: color 0.2s;
+}
+
+.post-actions button:hover {
+    color: var(--primary-color);
+}
+
+.like-btn.liked {
+    color: red;
+}
+
+.comments-section {
+    margin-top: 10px;
+    padding: 10px 0;
+    border-top: 1px solid #eee;
+}
+
+.comment {
+    background-color: #f9f9f9;
+    padding: 5px 10px;
+    border-radius: 4px;
+    margin-bottom: 5px;
+    font-size: 0.9em;
+}
+
+.comment-form {
+    display: flex;
+    margin-top: 10px;
+}
+
+.comment-form input {
+    flex-grow: 1;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px 0 0 4px;
+}
+
+.comment-form button {
+    padding: 8px 15px;
+    background-color: var(--secondary-color);
+    color: white;
+    border: none;
+    border-radius: 0 4px 4px 0;
+    cursor: pointer;
+}
+
+/* --- Notifications Area (NEW) --- */
+.notification-area {
+    position: relative;
+    display: inline-block;
+    margin-right: 20px;
+}
+
+#notification-bell {
+    background: none;
+    border: none;
+    font-size: 1.2em;
+    cursor: pointer;
+    position: relative;
+}
+
+#notification-counter {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background-color: red;
+    color: white;
+    border-radius: 50%;
+    padding: 2px 6px;
+    font-size: 0.7em;
+    font-weight: bold;
+}
+
+#notification-dropdown {
+    display: none; /* Hidden by default */
+    position: absolute;
+    right: 0;
+    background-color: white;
+    min-width: 250px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1;
+    border-radius: 5px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.notification-area:hover #notification-dropdown {
+    display: block;
+}
+
+.notification-item {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.notification-item.unread {
+    background-color: #e0ffe0;
+    font-weight: bold;
+}
+.notification-item:hover {
+    background-color: #f0f0f0;
+}
