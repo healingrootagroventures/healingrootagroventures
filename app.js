@@ -10,7 +10,7 @@ import {
     getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, orderBy, onSnapshot, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-// --- CONFIGURATION CONSTANTS (NEW FIREBASE CONFIG) ---
+// --- CONFIGURATION CONSTANTS (NEW FIREBASE & CLOUDINARY) ---
 const firebaseConfig = { 
     apiKey: "AIzaSyBYsQnVQM62Q1xo0-RvA7OxY-3_EZefmxU",
     authDomain: "healing-root-web.firebaseapp.com",
@@ -21,11 +21,10 @@ const firebaseConfig = {
     measurementId: "G-3B33ENKJFJ"
 };
 
-// !!! UPDATED ADMIN UID !!!
+// !!! UPDATED ADMIN UID & CLOUDINARY DETAILS !!!
 const ADMIN_UID = "zqq3aNV8HqdkcnvRKosTE40YbIn2"; 
-// NOTE: Please ensure your Cloudinary URL and UPLOAD_PRESET are correct for your NEW account
-const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dd7dre9hd/upload"; 
-const UPLOAD_PRESET = "unsigned_upload";
+const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dzol6xyx8/upload"; // CLOUD NAME INTEGRATED
+const UPLOAD_PRESET = "unsigned-upload"; // PRESET CODE INTEGRATED
 
 // --- FIREBASE INITIALIZATION ---
 const app = initializeApp(firebaseConfig);
@@ -63,7 +62,8 @@ const logoutBtn = document.getElementById('logout-btn');
  */
 async function uploadProfilePicture(file) {
     if (!file) {
-        return "https://res.cloudinary.com/dd7dre9hd/image/upload/v1678886400/default_pfp.png"; 
+        // Use a default placeholder URL that will work even if the Cloudinary API fails.
+        return "https://via.placeholder.com/150?text=PFP"; 
     }
     
     const formData = new FormData();
@@ -76,7 +76,9 @@ async function uploadProfilePicture(file) {
             body: formData,
         });
         if (!response.ok) {
-            throw new Error(`Cloudinary upload failed: ${response.statusText}`);
+            // Throwing a detailed error if the Cloudinary upload fails
+            const errorData = await response.json();
+            throw new Error(`Cloudinary upload failed (Status: ${response.status}): ${errorData.error.message || response.statusText}`);
         }
         const data = await response.json();
         return data.secure_url;
@@ -267,7 +269,7 @@ document.getElementById('user-search-btn')?.addEventListener('click', async () =
     resultsDiv.innerHTML = `
         <div class="user-result">
             <p>Found: <strong>${user.email.split('@')[0]}</strong></p>
-            <button class="send-request-btn" data-uid="${user.uid}">Send Friend Request</button>
+            <button class="send-request-btn" data-uid="${user.uid}" class="button-primary">Send Friend Request</button>
         </div>
     `;
     document.querySelector('.send-request-btn').addEventListener('click', sendFriendRequest);
