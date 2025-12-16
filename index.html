@@ -1,48 +1,156 @@
-<main>
-    <div id="content-wrapper" style="display: none;">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgroLink - Social Farming Platform</title>
+    <link rel="stylesheet" href="style.css"> 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
 
-        <section id="social" class="container">
-            <h2>The Community Feed</h2>
-            <div id="post-form-area">
-                <form id="new-post-form">
-                    <textarea placeholder="What's on your mind?" required></textarea>
-                    <input type="file" id="post-image-input" accept="image/*">
-                    <button type="submit" class="button-primary">Post</button>
-                </form>
+    <header>
+        <div class="logo">AgroLink</div>
+        <nav>
+            <a href="#social" data-auth="loggedIn">Feed</a>
+            <a href="#friends-chat" data-auth="loggedIn">Friends & Chat</a>
+            
+            <div class="notification-area" data-auth="loggedIn">
+                <button id="notification-bell" aria-label="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span id="notification-counter" style="display: none;"></span>
+                </button>
+                <div id="notification-dropdown">
+                    <div class="notification-item unread">Welcome to AgroLink!</div>
+                    <div class="notification-item">Friend request accepted.</div>
+                </div>
             </div>
-            <div id="social-feed" class="social-feed">
-                </div>
-        </section>
 
-        <section id="friends-chat" class="container">
-            <div class="two-column-layout">
-                <div class="friends-list-container">
-                    <h3>👥 Friends & Requests</h3>
-                    <div id="friend-requests-received"></div>
-                    <div id="my-friends-list"></div>
-                    <input type="text" id="user-search-input" placeholder="Find users by email...">
-                    <button id="user-search-btn">Search</button>
-                    <div id="search-results"></div>
-                </div>
+            <a href="#admin" id="admin-link" style="display: none;" data-auth="loggedIn">Admin Dashboard</a>
+            
+            <button id="logout-btn" data-auth="loggedIn" class="button-secondary">Logout</button>
+            
+            <button onclick="document.getElementById('auth-modal').style.display='flex';" 
+                    data-auth="loggedOut" 
+                    style="display: none;">Login / Signup</button>
+        </nav>
+    </header>
 
-                <div class="chat-window-container">
-                    <h3>💬 Real-Time Chat</h3>
-                    <div id="chat-window">
-                        <p class="chat-placeholder">Select a friend to start chatting.</p>
-                        <div id="messages-display">
-                            </div>
-                    </div>
-                    <form id="chat-form" style="display: none;">
-                        <input type="text" id="message-input" placeholder="Type your message..." required>
-                        <button type="submit">Send</button>
+    <main>
+        <p id="loading-status" style="text-align: center; margin-top: 50px;">Initializing application and checking login status...</p>
+
+        <div id="content-wrapper" style="display: none;">
+
+            <section id="social" class="container">
+                <h2>🌱 Community Feed</h2>
+                
+                <div id="post-form-area">
+                    <form id="new-post-form">
+                        <textarea placeholder="What's growing on your farm today?" required></textarea>
+                        <input type="file" id="post-image-input" accept="image/*">
+                        <button type="submit" class="button-primary">Post to Community</button>
                     </form>
                 </div>
-            </div>
-        </section>
-    </div>
+                
+                <div id="social-feed" class="social-feed">
+                    <p style="text-align: center; color: #666;">Loading latest posts...</p>
+                </div>
+            </section>
+            
+            <hr>
 
-    <div id="auth-modal" class="modal" style="display: flex;">
+            <section id="friends-chat" class="container">
+                <h2>🤝 Friends & Private Chat</h2>
+                
+                <div class="two-column-layout">
+                    
+                    <div class="friends-list-container">
+                        <h3>👥 My Connections</h3>
+                        
+                        <div id="friend-requests-received">
+                            <p>Loading pending requests...</p>
+                        </div>
+                        
+                        <div id="my-friends-list">
+                            <p>Loading friends list...</p>
+                        </div>
+
+                        <h3>🔍 Find New Users</h3>
+                        <div class="user-search-area">
+                            <input type="text" id="user-search-input" placeholder="Enter user email...">
+                            <button id="user-search-btn" class="button-primary" style="margin-top: 10px; width: 100%;">Search</button>
+                        </div>
+                        <div id="search-results">
+                            </div>
+                    </div>
+
+                    <div class="chat-window-container">
+                        <h3 id="chat-header">💬 Real-Time Chat</h3>
+                        
+                        <div id="chat-window">
+                            <p class="chat-placeholder">Select a friend from the left to start chatting.</p>
+                            
+                            <div id="messages-display">
+                                </div>
+                        </div>
+                        
+                        <form id="chat-form" style="display: none;">
+                            <input type="text" id="message-input" placeholder="Type your message..." required>
+                            <button type="submit">Send</button>
+                        </form>
+                    </div>
+                </div>
+            </section>
         </div>
+
+        <div id="auth-modal" class="modal">
+            <div class="modal-content">
+                <h2>Welcome to AgroLink</h2>
+                <div class="auth-toggle">
+                    <button id="show-login-btn" class="active">Login</button>
+                    <button id="show-signup-btn">Sign Up</button>
+                </div>
+
+                <form id="login-form">
+                    <input type="email" id="login-email" placeholder="Email" required>
+                    <input type="password" id="login-password" placeholder="Password" required>
+                    <button type="submit">Login</button>
+                </form>
+
+                <form id="signup-form" style="display:none;">
+                    <input type="email" id="signup-email" placeholder="Email" required>
+                    <input type="password" id="signup-password" placeholder="Password (min 6 chars)" required>
+                    <input type="text" id="signup-bio" placeholder="Short bio (e.g., I grow organic vegetables)">
+                    <label for="profile-pic-input">Profile Picture (Optional)</label>
+                    <input type="file" id="profile-pic-input" accept="image/*">
+                    <button type="submit">Create Account</button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-container">
+            <p>&copy; 2025 AgroLink. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script type="module" src="app.js"></script>
     
-    <p id="loading-status" style="text-align: center; margin-top: 50px;">Loading application...</p>
-</main>
+    <script>
+        document.getElementById('show-login-btn').addEventListener('click', () => {
+            document.getElementById('login-form').style.display = 'block';
+            document.getElementById('signup-form').style.display = 'none';
+            document.getElementById('show-login-btn').classList.add('active');
+            document.getElementById('show-signup-btn').classList.remove('active');
+        });
+
+        document.getElementById('show-signup-btn').addEventListener('click', () => {
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('signup-form').style.display = 'block';
+            document.getElementById('show-login-btn').classList.remove('active');
+            document.getElementById('show-signup-btn').classList.add('active');
+        });
+    </script>
+</body>
+</html>
