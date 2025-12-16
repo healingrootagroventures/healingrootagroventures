@@ -1,24 +1,24 @@
-import { products } from './products.js';
+// NOTE: Make sure to re-import all necessary Firebase and project files
+import { products } from './products.js'; // Assuming you still need this file
+import { 
+    initializeApp 
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { 
+    getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut 
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import { 
+    getFirestore, doc, setDoc, getDoc, collection, query, where, orderBy, onSnapshot, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp 
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-// --- CONFIGURATION CONSTANTS (Provided by User) ---
-const firebaseConfig = {
-  apiKey: "AIzaSyAgjMFw0dbM7CBH4S_zrmPhE69pp84Tpdo",
-  authDomain: "healing-root-farm.firebaseapp.com",
-  projectId: "healing-root-farm",
-  storageBucket: "healing-root-farm.appspot.com",
-  messagingSenderId: "1042258816994",
-  appId: "1:1042258816994:web:0b6dd6b7f1c370ee7093bb"
+// --- CONFIGURATION CONSTANTS ---
+const firebaseConfig = { 
+    // YOUR CONFIG HERE (Ensure it is correct!)
 };
-
 const ADMIN_UID = "gKwgPDNJgsdcApIJch6NM9bKmf02";
-const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dd7dre9hd/upload";
+const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dd7dre9hd/upload"; 
 const UPLOAD_PRESET = "unsigned_upload";
 
 // --- FIREBASE INITIALIZATION ---
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -26,285 +26,283 @@ const db = getFirestore(app);
 // --- GLOBAL STATE & UI CACHING ---
 let currentUser = null;
 let currentProfile = null;
-const productList = document.getElementById('product-list');
+let activeChatFriendUID = null;
+let currentChatID = null;
+
+const contentWrapper = document.getElementById('content-wrapper');
 const authModal = document.getElementById('auth-modal');
 const socialFeed = document.getElementById('social-feed');
+const loadingStatus = document.getElementById('loading-status');
 const notificationCounter = document.getElementById('notification-counter');
-const notificationDropdown = document.getElementById('notification-dropdown');
+const myFriendsList = document.getElementById('my-friends-list');
+const friendRequestsReceived = document.getElementById('friend-requests-received');
+const messagesDisplay = document.getElementById('messages-display');
+const chatForm = document.getElementById('chat-form');
+const messageInput = document.getElementById('message-input');
 
-// --- CORE FUNCTIONS ---
 
-// 1. Authentication Listener (Handles UI and data loading on sign-in/out)
+// --- CORE AUTHENTICATION LISTENER ---
 onAuthStateChanged(auth, async (user) => {
     currentUser = user; 
     
-    // Update Navigation Links
-    document.querySelectorAll('[data-auth]').forEach(el => el.style.display = 'none');
     if (user) {
-        document.querySelector('[data-auth="loggedIn"]').forEach(el => el.style.display = 'block');
+        loadingStatus.style.display = 'none';
+        
+        // 1. Load Profile
+        const docSnap = await getDoc(doc(db, "users", user.uid));
+        currentProfile = docSnap.exists() ? docSnap.data() : null;
+        if (!currentProfile) {
+            // Handle incomplete profile (should not happen if signup works)
+            console.error("User profile missing!");
+            return;
+        }
+
+        // 2. Update UI & Display Content
+        contentWrapper.style.display = 'block';
+        authModal.style.display = 'none';
+        
+        document.querySelectorAll('[data-auth="loggedIn"]').forEach(el => el.style.display = 'block');
+        document.querySelectorAll('[data-auth="loggedOut"]').forEach(el => el.style.display = 'none');
         if (user.uid === ADMIN_UID) {
             document.getElementById('admin-link').style.display = 'block';
         }
 
-        // Load User Profile and Start Real-time Social Listeners
-        currentProfile = await getDoc(doc(db, "users", user.uid)).then(d => d.data());
+        // 3. Start Real-time Listeners
         loadSocialFeed();
         setupNotificationListener(user.uid);
-        
-        // Hide Modal if open
-        if(authModal) authModal.style.display = 'none';
+        setupFriendshipListener(user.uid);
 
     } else {
-        document.querySelector('[data-auth="loggedOut"]').forEach(el => el.style.display = 'block');
-        socialFeed.innerHTML = "<p class='intro-text'>Please log in to join the farmer community, chat, and shop.</p>";
+        // User logged out
+        loadingStatus.style.display = 'none';
+        contentWrapper.style.display = 'none';
+        authModal.style.display = 'flex';
+        document.querySelectorAll('[data-auth="loggedIn"]').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('[data-auth="loggedOut"]').forEach(el => el.style.display = 'block');
     }
 });
 
-// 2. Cloudinary Upload
-async function uploadProfilePicture(file) {
-    if (!file) return "https://res.cloudinary.com/dd7dre9hd/image/upload/v1/default_avatar.png"; // Placeholder default
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', UPLOAD_PRESET);
+// --- POSTS & REAL-TIME INTERACTION FUNCTIONS (Same as previous step, ensure they are imported/defined) ---
+
+// Placeholder functions (You need to ensure these are defined/imported correctly):
+// function loadSocialFeed() { ... }
+// function handleLike(e) { ... }
+// function handleComment(e) { ... }
+// function setupNotificationListener(uid) { ... }
+
+
+// --- FRIENDSHIP & CHAT FUNCTIONS (NEW) ---
+
+// 1. Friend Search & Request
+document.getElementById('user-search-btn').addEventListener('click', async () => {
+    const email = document.getElementById('user-search-input').value;
+    if (!email) return;
+
+    const q = query(collection(db, "users"), where("email", "==", email));
+    const snapshot = await getDocs(q);
+    const resultsDiv = document.getElementById('search-results');
+    resultsDiv.innerHTML = '';
+
+    if (snapshot.empty || snapshot.docs[0].id === currentUser.uid) {
+        resultsDiv.innerHTML = '<p>User not found or you searched for yourself.</p>';
+        return;
+    }
+    
+    const user = snapshot.docs[0].data();
+    resultsDiv.innerHTML = `
+        <div class="user-result">
+            <p>Found: <strong>${user.email.split('@')[0]}</strong></p>
+            <button class="send-request-btn" data-uid="${user.uid}">Send Friend Request</button>
+        </div>
+    `;
+    document.querySelector('.send-request-btn').addEventListener('click', sendFriendRequest);
+});
+
+async function sendFriendRequest(e) {
+    const recipientUID = e.currentTarget.dataset.uid;
+    if (currentProfile.friends.includes(recipientUID) || currentProfile.pendingRequests.includes(recipientUID)) {
+        alert("Already friends or request already sent.");
+        return;
+    }
 
     try {
-        const response = await fetch(CLOUDINARY_URL, { method: 'POST', body: formData });
-        const data = await response.json();
-        return data.secure_url;
+        await updateDoc(doc(db, "users", recipientUID), {
+            // Add current user's UID to recipient's pendingRequests array
+            pendingRequests: arrayUnion(currentUser.uid) 
+        });
+        alert("Friend request sent!");
+        document.getElementById('search-results').innerHTML = ''; // Clear results
     } catch (error) {
-        console.error("Cloudinary upload failed:", error);
-        return "https://res.cloudinary.com/dd7dre9hd/image/upload/v1/default_avatar.png";
+        console.error("Error sending request:", error);
+        alert("Failed to send request.");
     }
 }
 
-// 3. User Profile Creation (Saves data to Firestore)
-async function createUserProfile(uid, email, bio, profilePicUrl) {
-    const isAdmin = (uid === ADMIN_UID);
-    await setDoc(doc(db, "users", uid), {
-        uid: uid,
-        email: email,
-        bio: bio,
-        profilePicUrl: profilePicUrl,
-        friends: [],
-        isAdmin: isAdmin,
-        postCount: 0,
-        createdAt: serverTimestamp()
+// 2. Real-time Friendship Listener
+function setupFriendshipListener(uid) {
+    onSnapshot(doc(db, "users", uid), (docSnap) => {
+        if (docSnap.exists()) {
+            const user = docSnap.data();
+            currentProfile = user; // Update global state
+            renderFriends(user.friends);
+            renderFriendRequests(user.pendingRequests);
+        }
     });
 }
 
-// 4. Social Feed Listener & Renderer
-function loadSocialFeed() {
-    if (!socialFeed) return;
-    socialFeed.innerHTML = '<h3>Loading Community Feed...</h3>';
+// 3. Render Friends List
+async function renderFriends(friendUids) {
+    myFriendsList.innerHTML = '';
+    if (friendUids.length === 0) {
+        myFriendsList.innerHTML = '<p>You have no friends yet.</p>';
+        return;
+    }
 
-    const q = query(collection(db, "posts"), orderBy("timestamp", "desc"));
-    
-    // Real-time listener for posts
-    onSnapshot(q, (snapshot) => {
-        let feedHTML = '';
-        snapshot.docs.forEach(doc => {
-            const post = doc.data();
-            const postID = doc.id;
-            const isLiked = post.likes.includes(currentUser.uid);
-            
-            feedHTML += `
-                <div class="post-card" id="post-${postID}">
-                    <div class="post-header">
-                        <img src="${post.authorPic}" alt="PFP" class="post-pfp">
-                        <strong>${post.authorName}</strong> 
-                        <span class="post-time">${new Date(post.timestamp.toDate()).toLocaleDateString()}</span>
-                    </div>
-                    <p class="post-content">${post.content}</p>
-                    <div class="post-actions">
-                        <button class="action-btn like-btn ${isLiked ? 'liked' : ''}" data-post-id="${postID}">
-                            ❤️ ${post.likes.length} Likes
-                        </button>
-                        <button class="action-btn comment-toggle" data-post-id="${postID}">
-                            💬 ${post.comments.length} Comments
-                        </button>
-                    </div>
-                    <div class="comments-section" id="comments-${postID}" style="display: none;">
-                        ${post.comments.map(comment => `
-                            <div class="comment"><strong>${comment.name}:</strong> ${comment.text}</div>
-                        `).join('')}
-                        <form class="comment-form" data-post-id="${postID}">
-                            <input type="text" placeholder="Write a comment..." required>
-                            <button type="submit">Post</button>
-                        </form>
-                    </div>
-                </div>
+    // Fetch friend profiles
+    const friendProfiles = await Promise.all(
+        friendUids.map(uid => getDoc(doc(db, "users", uid)))
+    );
+
+    friendProfiles.forEach(docSnap => {
+        if (docSnap.exists()) {
+            const friend = docSnap.data();
+            const li = document.createElement('div');
+            li.className = 'friend-item';
+            li.innerHTML = `
+                <img src="${friend.profilePicUrl}" class="pfp-small">
+                <span>${friend.email.split('@')[0]}</span>
+                <button data-uid="${friend.uid}" class="chat-start-btn">Chat</button>
             `;
-        });
-        socialFeed.innerHTML = feedHTML;
-        
-        // Re-attach event listeners after rendering
-        document.querySelectorAll('.like-btn').forEach(btn => btn.addEventListener('click', handleLike));
-        document.querySelectorAll('.comment-toggle').forEach(btn => btn.addEventListener('click', toggleComments));
-        document.querySelectorAll('.comment-form').forEach(form => form.addEventListener('submit', handleComment));
+            li.querySelector('.chat-start-btn').addEventListener('click', startChat);
+            myFriendsList.appendChild(li);
+        }
     });
 }
 
-// 5. Handle Like Action
-async function handleLike(e) {
-    if (!currentUser) return alert('Please log in to interact.');
-    const postID = e.currentTarget.dataset.postId;
-    const postRef = doc(db, "posts", postID);
-    
-    const postDoc = await getDoc(postRef);
-    const post = postDoc.data();
-    
-    const isLiked = post.likes.includes(currentUser.uid);
-    
-    if (isLiked) {
-        // Unlike
-        await updateDoc(postRef, {
-            likes: arrayRemove(currentUser.uid)
-        });
-        // Delete notification (optional for complexity)
-    } else {
-        // Like
-        await updateDoc(postRef, {
-            likes: arrayUnion(currentUser.uid)
-        });
+// 4. Render Friend Requests
+async function renderFriendRequests(requestUids) {
+    friendRequestsReceived.innerHTML = '';
+    if (!requestUids || requestUids.length === 0) {
+        friendRequestsReceived.innerHTML = '<p>No pending requests.</p>';
+        return;
+    }
 
-        // Create notification for the post author
-        if (post.authorUID !== currentUser.uid) {
-             await addDoc(collection(db, "notifications"), {
-                recipientUID: post.authorUID,
-                senderName: currentProfile.email.split('@')[0], // Simplified name
-                type: 'like',
-                read: false,
-                postId: postID,
-                timestamp: serverTimestamp()
-            });
+    // Fetch request sender profiles
+    const senderProfiles = await Promise.all(
+        requestUids.map(uid => getDoc(doc(db, "users", uid)))
+    );
+
+    senderProfiles.forEach(docSnap => {
+        if (docSnap.exists()) {
+            const sender = docSnap.data();
+            const div = document.createElement('div');
+            div.className = 'request-item';
+            div.innerHTML = `
+                <span>${sender.email.split('@')[0]} sent you a request.</span>
+                <button data-sender-uid="${sender.uid}" class="accept-btn">Accept</button>
+                <button data-sender-uid="${sender.uid}" class="reject-btn">Reject</button>
+            `;
+            div.querySelector('.accept-btn').addEventListener('click', handleFriendRequest('accept'));
+            div.querySelector('.reject-btn').addEventListener('click', handleFriendRequest('reject'));
+            friendRequestsReceived.appendChild(div);
+        }
+    });
+}
+
+// 5. Handle Friend Request (Accept/Reject)
+function handleFriendRequest(action) {
+    return async (e) => {
+        const senderUID = e.currentTarget.dataset.senderUid;
+        const senderRef = doc(db, "users", senderUID);
+        const recipientRef = doc(db, "users", currentUser.uid);
+
+        if (action === 'accept') {
+            // 1. Remove request from recipient's pendingRequests
+            await updateDoc(recipientRef, { pendingRequests: arrayRemove(senderUID) });
+            // 2. Add both to each other's friends array
+            await updateDoc(recipientRef, { friends: arrayUnion(senderUID) });
+            await updateDoc(senderRef, { friends: arrayUnion(currentUser.uid) });
+            alert(`You are now friends with ${senderUID.substring(0, 5)}...`);
+        } else if (action === 'reject') {
+            // 1. Only remove request from recipient's pendingRequests
+            await updateDoc(recipientRef, { pendingRequests: arrayRemove(senderUID) });
+            alert(`Request from ${senderUID.substring(0, 5)}... rejected.`);
         }
     }
 }
 
-// 6. Notification Listener
-function setupNotificationListener(uid) {
-    const q = query(collection(db, "notifications"), where("recipientUID", "==", uid), orderBy("timestamp", "desc"));
+// 6. Start/Select Chat (Find or Create Chat Document)
+async function startChat(e) {
+    const friendUID = e.currentTarget.dataset.uid;
+    activeChatFriendUID = friendUID;
+
+    // Determine the chat ID by sorting UIDs to ensure consistency
+    const participants = [currentUser.uid, friendUID].sort();
+    const chatID = participants.join('_');
+    currentChatID = chatID;
+
+    // Display friend's name in chat header
+    const friendProfile = await getDoc(doc(db, "users", friendUID)).then(d => d.data());
+    document.getElementById('chat-window').querySelector('h3').textContent = `💬 Chat with ${friendProfile.email.split('@')[0]}`;
+    document.getElementById('chat-form').style.display = 'flex';
+    document.getElementById('messages-display').innerHTML = ''; // Clear previous messages
     
-    onSnapshot(q, (snapshot) => {
-        let unreadCount = 0;
-        let dropdownHTML = '';
+    // Ensure chat document exists (or create it)
+    await setDoc(doc(db, "chats", chatID), { 
+        participants: participants, 
+        lastMessageAt: serverTimestamp() 
+    }, { merge: true });
 
+    // Start real-time message listener
+    setupMessageListener(chatID);
+}
+
+// 7. Real-time Message Listener
+function setupMessageListener(chatID) {
+    const q = query(collection(db, "chats", chatID, "messages"), orderBy("timestamp", "asc"));
+    
+    // Unsubscribe from previous listener if active
+    if (window.unsubscribeMessages) window.unsubscribeMessages(); 
+
+    window.unsubscribeMessages = onSnapshot(q, (snapshot) => {
+        messagesDisplay.innerHTML = '';
         snapshot.docs.forEach(doc => {
-            const notif = doc.data();
-            const time = notif.timestamp ? new Date(notif.timestamp.toDate()).toLocaleTimeString() : 'Just now';
+            const message = doc.data();
+            const isMe = message.senderUID === currentUser.uid;
             
-            if (!notif.read) unreadCount++;
-
-            dropdownHTML += `
-                <div class="notification-item ${notif.read ? '' : 'unread'}" data-notif-id="${doc.id}">
-                    ${notif.senderName} ${notif.type === 'like' ? 'liked your post' : 'commented on your post'} 
-                    <span class="time">${time}</span>
-                </div>
-            `;
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message-bubble ${isMe ? 'mine' : 'theirs'}`;
+            messageDiv.textContent = message.text;
+            messagesDisplay.appendChild(messageDiv);
         });
-
-        notificationCounter.textContent = unreadCount > 0 ? unreadCount : '';
-        notificationDropdown.innerHTML = dropdownHTML || '<p style="padding: 10px;">No new notifications.</p>';
-        
-        document.querySelectorAll('.notification-item').forEach(item => item.addEventListener('click', markNotificationAsRead));
+        // Scroll to bottom of chat
+        messagesDisplay.scrollTop = messagesDisplay.scrollHeight;
     });
 }
 
-// 7. Mark Notification as Read
-async function markNotificationAsRead(e) {
-    const notifID = e.currentTarget.dataset.notifId;
-    await updateDoc(doc(db, "notifications", notifID), {
-        read: true
-    });
-    // Optional: Redirect user to the post/profile
-}
-
-// 8. Handle Comment Submission
-async function handleComment(e) {
+// 8. Handle Chat Message Submission
+chatForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!currentUser) return alert('Please log in to comment.');
-    
-    const postID = e.target.dataset.postId;
-    const commentText = e.target.querySelector('input').value;
-    const postRef = doc(db, "posts", postID);
-    
-    const newComment = {
-        uid: currentUser.uid,
-        name: currentProfile.email.split('@')[0], // Simplified name
-        text: commentText,
+    const text = messageInput.value.trim();
+    if (!text || !currentChatID) return;
+
+    await addDoc(collection(db, "chats", currentChatID, "messages"), {
+        senderUID: currentUser.uid,
+        text: text,
         timestamp: serverTimestamp()
-    };
-    
-    await updateDoc(postRef, {
-        comments: arrayUnion(newComment)
     });
     
-    // Clear the input and create notification
-    e.target.reset();
-    
-    // Create notification for the post author
-    const postDoc = await getDoc(postRef);
-    const post = postDoc.data();
-
-    if (post.authorUID !== currentUser.uid) {
-         await addDoc(collection(db, "notifications"), {
-            recipientUID: post.authorUID,
-            senderName: currentProfile.email.split('@')[0], 
-            type: 'comment',
-            read: false,
-            postId: postID,
-            timestamp: serverTimestamp()
-        });
-    }
-}
-
-
-// --- INITIALIZE UI & LISTENERS ---
-document.addEventListener('DOMContentLoaded', () => {
-    // Render static products on the shop page
-    if (productList) {
-        productList.innerHTML = products.map(p => 
-            `<div class="product-card">...</div>` // Use full HTML from previous response
-        ).join('');
-    }
-
-    // AUTH HANDLERS (Same as previous step, but ensuring all forms exist)
-    const signupForm = document.getElementById('signup-form');
-    const loginForm = document.getElementById('login-form');
-    
-    if (signupForm) signupForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        // Simplified Sign Up
-        const email = e.target.email.value;
-        const password = e.target.password.value;
-        const bio = e.target.bio.value;
-        const profilePicFile = document.getElementById('profile-pic-input').files[0];
-        try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const picUrl = await uploadProfilePicture(profilePicFile);
-            await createUserProfile(userCredential.user.uid, email, bio, picUrl);
-            alert("Success! Welcome.");
-        } catch (error) { alert(`Error: ${error.message}`); }
+    // Update the parent chat document for sorting/last message preview
+    await updateDoc(doc(db, "chats", currentChatID), {
+        lastMessageText: text,
+        lastMessageAt: serverTimestamp()
     });
 
-    if (loginForm) loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        // Simplified Login
-        try {
-            await signInWithEmailAndPassword(auth, e.target.email.value, e.target.password.value);
-        } catch (error) { alert(`Error: ${error.message}`); }
-    });
-    
-    // Global functions for modal control
-    window.toggleModal = () => {
-        if(authModal.style.display === 'flex') {
-            authModal.style.display = 'none';
-        } else {
-            authModal.style.display = 'flex';
-        }
-    }
-    document.getElementById('login-link').addEventListener('click', toggleModal);
-    document.querySelector('.close-button').addEventListener('click', toggleModal);
-    document.getElementById('logout-link').addEventListener('click', handleLogout);
+    messageInput.value = '';
 });
+
+
+// --- ADMIN DASHBOARD & OTHER UI FUNCTIONS (As per previous steps) ---
+
+// (Ensure your login/signup/logout handlers and Cloudinary upload function are still present)
