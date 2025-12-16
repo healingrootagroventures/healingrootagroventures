@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Healing Root Agro</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        #admin-panel { padding-top: 20px; }
+        .data-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+        .data-table th, .data-table td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+        .data-table th { background-color: #eee; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">HEALING ROOT AGRO VENTURES - ADMIN</div>
+        <nav>
+            <a href="index.html">Back to Site</a>
+            <a href="#" id="logout-link">Logout</a>
+        </nav>
+    </header>
+
+    <main id="admin-panel" class="container">
+        <h1>Admin Dashboard</h1>
+        <p id="admin-status">Checking access...</p>
+
+        <h2>Registered Users</h2>
+        <table id="user-table" class="data-table">
+            <thead>
+                <tr><th>Email</th><th>Bio</th><th>Registered</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+
+        <h2>Pending Orders (TBD)</h2>
+        <table id="order-table" class="data-table">
+            </table>
+
+    </main>
+
+    <script type="module" src="app.js"></script>
+    <script type="module">
+        import { auth, db, ADMIN_UID } from './app.js'; // Import necessary exports
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+        import { collection, getDocs, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user && user.uid === ADMIN_UID) {
+                document.getElementById('admin-status').textContent = "Welcome, Administrator!";
+                loadAdminData();
+            } else {
+                document.getElementById('admin-status').textContent = "Access Denied. Redirecting to home.";
+                setTimeout(() => window.location.href = 'index.html', 3000);
+            }
+        });
+
+        async function loadAdminData() {
+            // Load User Data
+            const usersSnapshot = await getDocs(collection(db, "users"));
+            const userTableBody = document.querySelector('#user-table tbody');
+            userTableBody.innerHTML = '';
+
+            usersSnapshot.forEach(doc => {
+                const user = doc.data();
+                const row = userTableBody.insertRow();
+                row.insertCell().textContent = user.email;
+                row.insertCell().textContent = user.bio;
+                row.insertCell().textContent = user.createdAt ? new Date(user.createdAt.toDate()).toLocaleDateString() : 'N/A';
+                
+                const actionCell = row.insertCell();
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = 'Delete User';
+                deleteBtn.onclick = async () => {
+                    if (confirm(`Are you sure you want to delete ${user.email}?`)) {
+                        await deleteDoc(doc(db, "users", doc.id));
+                        alert('User deleted. Refreshing list.');
+                        loadAdminData();
+                    }
+                };
+                actionCell.appendChild(deleteBtn);
+            });
+            // Order data loading logic would go here
+        }
+    </script>
+</body>
+</html>
